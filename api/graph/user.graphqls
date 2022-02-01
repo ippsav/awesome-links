@@ -1,0 +1,27 @@
+enum Role {
+  ADMIN
+  USER
+}
+
+type User {
+  id: ID!
+  email: String!
+  password: String!
+  role: Role!
+  imageUrl: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CreateUserInput {
+  email: String!
+  password: String!
+}
+
+extend type Query {
+  me: User!
+}
+
+extend type Mutation {
+  register(createUserInput: CreateUserInput!): User!
+}

@@ -4,13 +4,17 @@ go 1.17
 
 require (
 	entgo.io/ent v0.10.0
+	github.com/99designs/gqlgen v0.15.1
 	github.com/gin-gonic/gin v1.7.7
 	github.com/google/uuid v1.3.0
+	github.com/spf13/viper v1.10.1
+	github.com/vektah/gqlparser/v2 v2.2.0
 )
 
 require (
 	ariga.io/atlas v0.3.2-0.20220120225051-c3fac7d636dd // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
+	github.com/agnivade/levenshtein v1.1.0 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
@@ -20,6 +24,8 @@ require (
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/hcl/v2 v2.10.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -35,7 +41,6 @@ require (
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.10.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	github.com/zclconf/go-cty v1.8.0 // indirect

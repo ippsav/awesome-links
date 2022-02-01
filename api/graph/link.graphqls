@@ -1,0 +1,20 @@
+type Link {
+  id: ID!
+  title: String!
+  description: String!
+  imageUrl: String!
+  url: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CreateLinkInput {
+  title: String!
+  description: String!
+  imageUrl: String!
+  url: String!
+}
+
+extend type Mutation {
+  createLink(createLinkInput: CreateLinkInput!): Link!
+}
