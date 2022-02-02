@@ -6,7 +6,6 @@ import (
 
 	cloudinary "github.com/cloudinary/cloudinary-go"
 	"github.com/cloudinary/cloudinary-go/api/uploader"
-	"github.com/google/uuid"
 	"github.com/ippsav/awesome-links/api/cmd/api/config"
 )
 
@@ -22,8 +21,8 @@ func NewCloudinaryRepository(cfg *config.Config) (*cloudinaryRepository, error) 
 	return &cloudinaryRepository{storage: cld}, nil
 }
 
-func (cr *cloudinaryRepository) UploadImage(ctx context.Context, file io.Reader, imageID uuid.UUID) (string, error) {
-	res, err := cr.storage.Upload.Upload(ctx, file, uploader.UploadParams{PublicID: imageID.String()})
+func (cr *cloudinaryRepository) UploadImage(ctx context.Context, file io.Reader) (string, error) {
+	res, err := cr.storage.Upload.Upload(ctx, file, uploader.UploadParams{})
 	if err != nil {
 		return "", err
 	}

@@ -16,6 +16,7 @@ type User {
 input CreateUserInput {
   email: String!
   password: String!
+  image: Upload!
 }
 
 extend type Query {

@@ -11,6 +11,7 @@ import (
 	"github.com/ippsav/awesome-links/api/ent"
 	"github.com/ippsav/awesome-links/api/internal/adapter/controller"
 	"github.com/ippsav/awesome-links/api/internal/adapter/repository"
+	"github.com/ippsav/awesome-links/api/internal/adapter/service"
 	_ "github.com/lib/pq"
 )
 
@@ -31,10 +32,17 @@ func main() {
 	// repositories
 	ur := repository.NewUserRepository(client)
 	lr := repository.NewLinkRepository(client)
+	cr, err := repository.NewCloudinaryRepository(config)
+	if err != nil {
+		fmt.Printf("could not create cloudinary repository, err: %s ", err.Error())
+	}
+	// services
+	us := service.NewUserService(ur, cr)
+	ls := service.NewLinkService(lr, cr)
 	// controllers
 	controller := &controller.Controller{
-		User: ur,
-		Link: lr,
+		User: us,
+		Link: ls,
 	}
 
 	// router

@@ -8,7 +8,7 @@ import (
 )
 
 type Link interface {
-	Create(ctx context.Context, inp entity.CreateLinkInput) (*entity.Link, error)
+	Create(ctx context.Context, inp entity.CreateLinkInput, ownerID uuid.UUID) (*entity.Link, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.Link, error)
 }
 
@@ -22,8 +22,8 @@ func NewLinkController(lr Link) *linkController {
 	}
 }
 
-func (lc *linkController) Create(ctx context.Context, inp entity.CreateLinkInput) (*entity.Link, error) {
-	return lc.Link.Create(ctx, inp)
+func (lc *linkController) Create(ctx context.Context, inp entity.CreateLinkInput, ownerID uuid.UUID) (*entity.Link, error) {
+	return lc.Link.Create(ctx, inp, ownerID)
 }
 
 func (lc *linkController) GetByID(ctx context.Context, id uuid.UUID) (*entity.Link, error) {

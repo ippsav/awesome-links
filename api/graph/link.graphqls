@@ -9,10 +9,9 @@ type Link {
 }
 
 input CreateLinkInput {
-  id: ID!
   title: String!
   description: String!
-  imageUrl: String!
+  image: Upload!
   url: String!
 }
 

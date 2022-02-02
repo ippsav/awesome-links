@@ -3,18 +3,18 @@
 package model
 
 import (
-	"github.com/google/uuid"
+	"github.com/99designs/gqlgen/graphql"
 )
 
 type CreateLinkInput struct {
-	ID          uuid.UUID `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	ImageURL    string    `json:"imageUrl"`
-	URL         string    `json:"url"`
+	Title       string         `json:"title"`
+	Description string         `json:"description"`
+	Image       graphql.Upload `json:"image"`
+	URL         string         `json:"url"`
 }
 
 type CreateUserInput struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string         `json:"email"`
+	Password string         `json:"password"`
+	Image    graphql.Upload `json:"image"`
 }

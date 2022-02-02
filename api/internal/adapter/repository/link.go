@@ -16,8 +16,8 @@ func NewLinkRepository(client *ent.Client) *linkRepository {
 	return &linkRepository{client}
 }
 
-func (lr *linkRepository) Create(ctx context.Context, inp entity.CreateLinkInput) (*entity.Link, error) {
-	link, err := lr.client.Link.Create().SetTitle(inp.Title).SetDescription(inp.Description).SetImageURL(inp.ImageURL).SetURL(inp.URL).SetOwnerID(inp.ID).Save(ctx)
+func (lr *linkRepository) Create(ctx context.Context, title, description, imageURL, URL string, ownerID uuid.UUID) (*entity.Link, error) {
+	link, err := lr.client.Link.Create().SetTitle(title).SetDescription(description).SetImageURL(imageURL).SetURL(URL).SetOwnerID(ownerID).Save(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,9 @@ import (
 )
 
 func (r *mutationResolver) CreateLink(ctx context.Context, createLinkInput model.CreateLinkInput) (*ent.Link, error) {
-	return r.controller.Link.Create(ctx, createLinkInput)
+	// placeholder
+	id := uuid.New()
+	return r.controller.Link.Create(ctx, createLinkInput, id)
 }
 
 func (r *queryResolver) Link(ctx context.Context, id uuid.UUID) (*ent.Link, error) {
