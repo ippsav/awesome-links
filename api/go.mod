@@ -5,6 +5,7 @@ go 1.17
 require (
 	entgo.io/ent v0.10.0
 	github.com/99designs/gqlgen v0.15.1
+	github.com/cloudinary/cloudinary-go v1.6.0
 	github.com/gin-gonic/gin v1.7.7
 	github.com/google/uuid v1.3.0
 	github.com/lib/pq v1.10.4
@@ -17,8 +18,7 @@ require (
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/agnivade/levenshtein v1.1.0 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
-	github.com/cloudinary/cloudinary-go v1.6.0 // indirect
-	github.com/creasty/defaults v1.5.2 // indirect
+	github.com/creasty/defaults v1.5.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect

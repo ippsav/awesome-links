@@ -25,7 +25,7 @@ type Config struct {
 	Cloudinary struct {
 		CloudName string
 		ApiKey    string
-		apisecret string
+		ApiSecret string
 	}
 }
 
