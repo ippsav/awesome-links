@@ -4,3 +4,6 @@ run:
 generate:
 	go generate
 	gqlgen
+	
+migrate:
+	go run cmd/migration/main.go

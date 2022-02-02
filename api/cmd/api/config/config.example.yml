@@ -1,0 +1,13 @@
+database:
+  host: localhost
+  port: 7001
+  user: user
+  password: password
+  dbname: awesome-links
+  sslmode: disable
+server:
+  address: 4000
+cloudinary:
+  cloudname: cloudname
+  apikey: apikey
+  apisecret: apisecret

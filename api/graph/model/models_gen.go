@@ -2,11 +2,16 @@
 
 package model
 
+import (
+	"github.com/google/uuid"
+)
+
 type CreateLinkInput struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	ImageURL    string `json:"imageUrl"`
-	URL         string `json:"url"`
+	ID          uuid.UUID `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	ImageURL    string    `json:"imageUrl"`
+	URL         string    `json:"url"`
 }
 
 type CreateUserInput struct {

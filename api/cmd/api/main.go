@@ -9,6 +9,9 @@ import (
 	"github.com/ippsav/awesome-links/api/cmd/api/config"
 	"github.com/ippsav/awesome-links/api/cmd/api/handler"
 	"github.com/ippsav/awesome-links/api/ent"
+	"github.com/ippsav/awesome-links/api/internal/adapter/controller"
+	"github.com/ippsav/awesome-links/api/internal/adapter/repository"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -19,11 +22,20 @@ func main() {
 		os.Exit(1)
 	}
 	// ent client
-	c, err := ent.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s dbname=%s password=%s", config.Database.Host, config.Database.Port, config.Database.User, config.Database.DBName, config.Database.Password))
+	client, err := ent.Open("postgres", fmt.Sprintf("host=%s port=%d user=%s dbname=%s password=%s sslmode=%s", config.Database.Host, config.Database.Port, config.Database.User, config.Database.DBName, config.Database.Password, config.Database.SSLMode))
 	if err != nil {
 		fmt.Printf("could not open connection , err: %s ", err.Error())
 	}
-	defer c.Close()
+	defer client.Close()
+
+	// repositories
+	ur := repository.NewUserRepository(client)
+	lr := repository.NewLinkRepository(client)
+	// controllers
+	controller := &controller.Controller{
+		User: ur,
+		Link: lr,
+	}
 
 	// router
 	r := gin.Default()
@@ -37,7 +49,7 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
-	r.POST("/query", handler.GraphqlHandler(c))
+	r.POST("/query", handler.GraphqlHandler(client, controller))
 	r.GET("/", handler.PlaygroundHandler())
 
 	// start server

@@ -5,12 +5,16 @@ package resolver
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/ippsav/awesome-links/api/ent"
 	"github.com/ippsav/awesome-links/api/graph/model"
 )
 
 func (r *mutationResolver) CreateLink(ctx context.Context, createLinkInput model.CreateLinkInput) (*ent.Link, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.controller.Link.Create(ctx, createLinkInput)
+}
+
+func (r *queryResolver) Link(ctx context.Context, id uuid.UUID) (*ent.Link, error) {
+	return r.controller.Link.GetByID(ctx, id)
 }

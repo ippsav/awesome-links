@@ -17,9 +17,15 @@ type Config struct {
 		User     string
 		Password string
 		DBName   string
+		SSLMode  string
 	}
 	Server struct {
 		Address int16
+	}
+	Cloudinary struct {
+		CloudName string
+		ApiKey    string
+		apisecret string
 	}
 }
 

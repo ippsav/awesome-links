@@ -9,6 +9,7 @@ type Link {
 }
 
 input CreateLinkInput {
+  id: ID!
   title: String!
   description: String!
   imageUrl: String!
@@ -17,4 +18,8 @@ input CreateLinkInput {
 
 extend type Mutation {
   createLink(createLinkInput: CreateLinkInput!): Link!
+}
+
+extend type Query {
+  link(id: ID!): Link
 }
