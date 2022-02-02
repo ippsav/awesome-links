@@ -9,9 +9,8 @@ import (
 )
 
 func GraphqlHandler(client *ent.Client, controller *controller.Controller) gin.HandlerFunc {
-
+	h := handler.NewDefaultServer(resolver.NewSchema(client, controller))
 	return func(c *gin.Context) {
-		h := handler.NewDefaultServer(resolver.NewSchema(client, controller, c.Request))
 		h.ServeHTTP(c.Writer, c.Request)
 	}
 }
