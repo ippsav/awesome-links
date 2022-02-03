@@ -8,13 +8,24 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/ippsav/awesome-links/api/cmd/api/middleware"
 	"github.com/ippsav/awesome-links/api/ent"
 	"github.com/ippsav/awesome-links/api/graph/model"
 )
 
 func (r *mutationResolver) CreateLink(ctx context.Context, createLinkInput model.CreateLinkInput) (*ent.Link, error) {
-	// placeholder
-	id := uuid.New()
+	ginContext, err := middleware.GinContextFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	userID, ok := ginContext.Get("userID")
+	if !ok {
+		return nil, fmt.Errorf("something went wrong")
+	}
+	id, err := uuid.Parse(userID.(string))
+	if err != nil {
+		return nil, err
+	}
 	return r.controller.Link.Create(ctx, createLinkInput, id)
 }
 

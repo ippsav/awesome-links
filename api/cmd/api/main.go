@@ -63,6 +63,7 @@ func main() {
 	r.Use(sessions.Sessions("auth-store", store))
 	r.Use(middleware.SessionMiddleware())
 	r.Use(middleware.GinContextToContextMiddleware())
+	r.Use(middleware.AuthMiddleware(config))
 	// routes
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})

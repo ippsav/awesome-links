@@ -8,3 +8,5 @@ import (
 type User = ent.User
 
 type CreateUserInput = model.CreateUserInput
+
+type LoginUserInput = model.LoginUserInput

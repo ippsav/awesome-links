@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ippsav/awesome-links/api/ent"
+	"github.com/ippsav/awesome-links/api/ent/user"
 	"github.com/ippsav/awesome-links/api/internal/entity"
 )
 
@@ -26,6 +27,14 @@ func (ur *userRepository) Create(ctx context.Context, email, password, imageURL 
 
 func (ur *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
 	user, err := ur.client.User.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (ur *userRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
+	user, err := ur.client.User.Query().Where(user.Email(email)).First(ctx)
 	if err != nil {
 		return nil, err
 	}

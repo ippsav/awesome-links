@@ -12,13 +12,17 @@ var CookieKey = "qid"
 func AuthMiddleware(config *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
-		accessToken := session.Get(CookieKey).(string)
-		claims, err := authentication.ParseToken(accessToken, config.JWT.Secret)
+		accessToken := session.Get(CookieKey)
+		if accessToken == nil {
+			return
+		}
+		claims, err := authentication.ParseToken(accessToken.(string), config.JWT.Secret)
 		if err != nil {
 			return
 		}
 		if claims.Valid() != nil {
 			session.Delete(CookieKey)
+			return
 		}
 		c.Set("userID", claims.UserID)
 	}

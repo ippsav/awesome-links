@@ -10,6 +10,7 @@ import (
 type User interface {
 	Create(ctx context.Context, inp entity.CreateUserInput) (*entity.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error)
+	GetByEmail(ctx context.Context, inp entity.LoginUserInput) (*entity.User, error)
 }
 
 type userController struct {
@@ -26,4 +27,7 @@ func (uc *userController) Create(ctx context.Context, inp entity.CreateUserInput
 
 func (uc *userController) GetByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
 	return uc.User.GetByID(ctx, id)
+}
+func (uc *userController) GetByEmail(ctx context.Context, inp entity.LoginUserInput) (*entity.User, error) {
+	return uc.User.GetByEmail(ctx, inp)
 }

@@ -30,7 +30,7 @@ func CreateToken(userID string, expirationTime int, jwtSecret string) (string, e
 
 func ParseToken(accessToken, jwtKey string) (*Claims, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(accessToken, claims, func(t *jwt.Token) (interface{}, error) { return jwtKey, nil })
+	token, err := jwt.ParseWithClaims(accessToken, claims, func(t *jwt.Token) (interface{}, error) { return []byte(jwtKey), nil })
 	if err != nil {
 		return nil, err
 	}
