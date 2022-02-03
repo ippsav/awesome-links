@@ -27,7 +27,7 @@ func (r *userResolver) Bookmarks(ctx context.Context, obj *ent.User) ([]*ent.Lin
 }
 
 func (r *userResolver) Links(ctx context.Context, obj *ent.User) ([]*ent.Link, error) {
-	panic(fmt.Errorf("not implemented"))
+	return r.controller.Link.GetUserLinks(ctx, obj.ID)
 }
 
 // User returns generated.UserResolver implementation.

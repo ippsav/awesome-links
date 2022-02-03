@@ -2,7 +2,7 @@ type Link {
   id: ID!
   title: String!
   description: String!
-  imageUrl: String!
+  imageUrl: String
   url: String!
   owner: User!
   createdAt: Time!
@@ -12,8 +12,9 @@ type Link {
 input CreateLinkInput {
   title: String!
   description: String!
-  image: Upload!
+  image: Upload
   url: String!
+  ownerID: ID!
 }
 
 extend type Mutation {

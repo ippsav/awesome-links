@@ -18,8 +18,7 @@ func (r *linkResolver) Owner(ctx context.Context, obj *ent.Link) (*ent.User, err
 
 func (r *mutationResolver) CreateLink(ctx context.Context, createLinkInput model.CreateLinkInput) (*ent.Link, error) {
 	// placeholder
-	id := uuid.New()
-	return r.controller.Link.Create(ctx, createLinkInput, id)
+	return r.controller.Link.Create(ctx, createLinkInput, createLinkInput.OwnerID)
 }
 
 func (r *queryResolver) Link(ctx context.Context, id uuid.UUID) (*ent.Link, error) {

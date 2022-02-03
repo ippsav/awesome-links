@@ -10,6 +10,7 @@ import (
 type Link interface {
 	Create(ctx context.Context, inp entity.CreateLinkInput, ownerID uuid.UUID) (*entity.Link, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*entity.Link, error)
+	GetUserLinks(ctx context.Context, ownerID uuid.UUID) ([]*entity.Link, error)
 }
 
 type linkController struct {
@@ -28,4 +29,8 @@ func (lc *linkController) Create(ctx context.Context, inp entity.CreateLinkInput
 
 func (lc *linkController) GetByID(ctx context.Context, id uuid.UUID) (*entity.Link, error) {
 	return lc.Link.GetByID(ctx, id)
+}
+
+func (lc *linkController) GetUserLinks(ctx context.Context, ownerID uuid.UUID) ([]*entity.Link, error) {
+	return lc.Link.GetUserLinks(ctx, ownerID)
 }

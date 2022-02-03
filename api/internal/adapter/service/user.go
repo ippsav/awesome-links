@@ -27,6 +27,9 @@ func NewUserService(ur User, c Cloudinary) *userService {
 }
 
 func (us *userService) Create(ctx context.Context, inp entity.CreateUserInput) (*entity.User, error) {
+	if inp.Image == nil {
+		return us.User.Create(ctx, inp.Email, inp.Password, "")
+	}
 	imageUrl, err := us.Cloudinary.UploadImage(ctx, inp.Image.File)
 	if err != nil {
 		return nil, err
