@@ -23,6 +23,10 @@ func (r *queryResolver) Me(ctx context.Context) (*ent.User, error) {
 }
 
 func (r *userResolver) Bookmarks(ctx context.Context, obj *ent.User) ([]*ent.Link, error) {
+	return obj.QueryBookmarks().All(ctx)
+}
+
+func (r *userResolver) Links(ctx context.Context, obj *ent.User) ([]*ent.Link, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
