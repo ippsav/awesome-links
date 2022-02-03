@@ -28,6 +28,7 @@ type UserQuery struct {
 	fields     []string
 	predicates []predicate.User
 	// eager-loading edges.
+	withLinks     *LinkQuery
 	withBookmarks *LinkQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -65,6 +66,28 @@ func (uq *UserQuery) Order(o ...OrderFunc) *UserQuery {
 	return uq
 }
 
+// QueryLinks chains the current query on the "links" edge.
+func (uq *UserQuery) QueryLinks() *LinkQuery {
+	query := &LinkQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(link.Table, link.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LinksTable, user.LinksColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryBookmarks chains the current query on the "bookmarks" edge.
 func (uq *UserQuery) QueryBookmarks() *LinkQuery {
 	query := &LinkQuery{config: uq.config}
@@ -79,7 +102,7 @@ func (uq *UserQuery) QueryBookmarks() *LinkQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(link.Table, link.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.BookmarksTable, user.BookmarksColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, user.BookmarksTable, user.BookmarksPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -268,11 +291,23 @@ func (uq *UserQuery) Clone() *UserQuery {
 		offset:        uq.offset,
 		order:         append([]OrderFunc{}, uq.order...),
 		predicates:    append([]predicate.User{}, uq.predicates...),
+		withLinks:     uq.withLinks.Clone(),
 		withBookmarks: uq.withBookmarks.Clone(),
 		// clone intermediate query.
 		sql:  uq.sql.Clone(),
 		path: uq.path,
 	}
+}
+
+// WithLinks tells the query-builder to eager-load the nodes that are connected to
+// the "links" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithLinks(opts ...func(*LinkQuery)) *UserQuery {
+	query := &LinkQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withLinks = query
+	return uq
 }
 
 // WithBookmarks tells the query-builder to eager-load the nodes that are connected to
@@ -351,7 +386,8 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 	var (
 		nodes       = []*User{}
 		_spec       = uq.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
+			uq.withLinks != nil,
 			uq.withBookmarks != nil,
 		}
 	)
@@ -375,32 +411,97 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 		return nodes, nil
 	}
 
-	if query := uq.withBookmarks; query != nil {
+	if query := uq.withLinks; query != nil {
 		fks := make([]driver.Value, 0, len(nodes))
 		nodeids := make(map[uuid.UUID]*User)
 		for i := range nodes {
 			fks = append(fks, nodes[i].ID)
 			nodeids[nodes[i].ID] = nodes[i]
-			nodes[i].Edges.Bookmarks = []*Link{}
+			nodes[i].Edges.Links = []*Link{}
 		}
 		query.withFKs = true
 		query.Where(predicate.Link(func(s *sql.Selector) {
-			s.Where(sql.InValues(user.BookmarksColumn, fks...))
+			s.Where(sql.InValues(user.LinksColumn, fks...))
 		}))
 		neighbors, err := query.All(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for _, n := range neighbors {
-			fk := n.user_bookmarks
+			fk := n.user_links
 			if fk == nil {
-				return nil, fmt.Errorf(`foreign-key "user_bookmarks" is nil for node %v`, n.ID)
+				return nil, fmt.Errorf(`foreign-key "user_links" is nil for node %v`, n.ID)
 			}
 			node, ok := nodeids[*fk]
 			if !ok {
-				return nil, fmt.Errorf(`unexpected foreign-key "user_bookmarks" returned %v for node %v`, *fk, n.ID)
+				return nil, fmt.Errorf(`unexpected foreign-key "user_links" returned %v for node %v`, *fk, n.ID)
 			}
-			node.Edges.Bookmarks = append(node.Edges.Bookmarks, n)
+			node.Edges.Links = append(node.Edges.Links, n)
+		}
+	}
+
+	if query := uq.withBookmarks; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		ids := make(map[uuid.UUID]*User, len(nodes))
+		for _, node := range nodes {
+			ids[node.ID] = node
+			fks = append(fks, node.ID)
+			node.Edges.Bookmarks = []*Link{}
+		}
+		var (
+			edgeids []uuid.UUID
+			edges   = make(map[uuid.UUID][]*User)
+		)
+		_spec := &sqlgraph.EdgeQuerySpec{
+			Edge: &sqlgraph.EdgeSpec{
+				Inverse: false,
+				Table:   user.BookmarksTable,
+				Columns: user.BookmarksPrimaryKey,
+			},
+			Predicate: func(s *sql.Selector) {
+				s.Where(sql.InValues(user.BookmarksPrimaryKey[0], fks...))
+			},
+			ScanValues: func() [2]interface{} {
+				return [2]interface{}{new(uuid.UUID), new(uuid.UUID)}
+			},
+			Assign: func(out, in interface{}) error {
+				eout, ok := out.(*uuid.UUID)
+				if !ok || eout == nil {
+					return fmt.Errorf("unexpected id value for edge-out")
+				}
+				ein, ok := in.(*uuid.UUID)
+				if !ok || ein == nil {
+					return fmt.Errorf("unexpected id value for edge-in")
+				}
+				outValue := *eout
+				inValue := *ein
+				node, ok := ids[outValue]
+				if !ok {
+					return fmt.Errorf("unexpected node id in edges: %v", outValue)
+				}
+				if _, ok := edges[inValue]; !ok {
+					edgeids = append(edgeids, inValue)
+				}
+				edges[inValue] = append(edges[inValue], node)
+				return nil
+			},
+		}
+		if err := sqlgraph.QueryEdges(ctx, uq.driver, _spec); err != nil {
+			return nil, fmt.Errorf(`query edges "bookmarks": %w`, err)
+		}
+		query.Where(link.IDIn(edgeids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := edges[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected "bookmarks" node returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.Bookmarks = append(nodes[i].Edges.Bookmarks, n)
+			}
 		}
 	}
 

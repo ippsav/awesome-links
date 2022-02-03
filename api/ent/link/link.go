@@ -27,6 +27,8 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeOwner holds the string denoting the owner edge name in mutations.
 	EdgeOwner = "owner"
+	// EdgeUsers holds the string denoting the users edge name in mutations.
+	EdgeUsers = "users"
 	// Table holds the table name of the link in the database.
 	Table = "links"
 	// OwnerTable is the table that holds the owner relation/edge.
@@ -35,7 +37,12 @@ const (
 	// It exists in this package in order to avoid circular dependency with the "user" package.
 	OwnerInverseTable = "users"
 	// OwnerColumn is the table column denoting the owner relation/edge.
-	OwnerColumn = "user_bookmarks"
+	OwnerColumn = "user_links"
+	// UsersTable is the table that holds the users relation/edge. The primary key declared below.
+	UsersTable = "user_bookmarks"
+	// UsersInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	UsersInverseTable = "users"
 )
 
 // Columns holds all SQL columns for link fields.
@@ -52,8 +59,14 @@ var Columns = []string{
 // ForeignKeys holds the SQL foreign-keys that are owned by the "links"
 // table and are not defined as standalone fields in the schema.
 var ForeignKeys = []string{
-	"user_bookmarks",
+	"user_links",
 }
+
+var (
+	// UsersPrimaryKey and UsersColumn2 are the table columns denoting the
+	// primary key for the users relation (M2M).
+	UsersPrimaryKey = []string{"user_id", "link_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -75,8 +88,6 @@ var (
 	TitleValidator func(string) error
 	// DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
 	DescriptionValidator func(string) error
-	// ImageURLValidator is a validator for the "image_url" field. It is called by the builders before save.
-	ImageURLValidator func(string) error
 	// URLValidator is a validator for the "url" field. It is called by the builders before save.
 	URLValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.

@@ -232,6 +232,22 @@ func (c *LinkClient) QueryOwner(l *Link) *UserQuery {
 	return query
 }
 
+// QueryUsers queries the users edge of a Link.
+func (c *LinkClient) QueryUsers(l *Link) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := l.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(link.Table, link.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, link.UsersTable, link.UsersPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(l.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *LinkClient) Hooks() []Hook {
 	return c.hooks.Link
@@ -322,6 +338,22 @@ func (c *UserClient) GetX(ctx context.Context, id uuid.UUID) *User {
 	return obj
 }
 
+// QueryLinks queries the links edge of a User.
+func (c *UserClient) QueryLinks(u *User) *LinkQuery {
+	query := &LinkQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(link.Table, link.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.LinksTable, user.LinksColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryBookmarks queries the bookmarks edge of a User.
 func (c *UserClient) QueryBookmarks(u *User) *LinkQuery {
 	query := &LinkQuery{config: c.config}
@@ -330,7 +362,7 @@ func (c *UserClient) QueryBookmarks(u *User) *LinkQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(link.Table, link.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.BookmarksTable, user.BookmarksColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, user.BookmarksTable, user.BookmarksPrimaryKey...),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil

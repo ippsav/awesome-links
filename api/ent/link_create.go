@@ -40,6 +40,14 @@ func (lc *LinkCreate) SetImageURL(s string) *LinkCreate {
 	return lc
 }
 
+// SetNillableImageURL sets the "image_url" field if the given value is not nil.
+func (lc *LinkCreate) SetNillableImageURL(s *string) *LinkCreate {
+	if s != nil {
+		lc.SetImageURL(*s)
+	}
+	return lc
+}
+
 // SetURL sets the "url" field.
 func (lc *LinkCreate) SetURL(s string) *LinkCreate {
 	lc.mutation.SetURL(s)
@@ -105,6 +113,21 @@ func (lc *LinkCreate) SetNillableOwnerID(id *uuid.UUID) *LinkCreate {
 // SetOwner sets the "owner" edge to the User entity.
 func (lc *LinkCreate) SetOwner(u *User) *LinkCreate {
 	return lc.SetOwnerID(u.ID)
+}
+
+// AddUserIDs adds the "users" edge to the User entity by IDs.
+func (lc *LinkCreate) AddUserIDs(ids ...uuid.UUID) *LinkCreate {
+	lc.mutation.AddUserIDs(ids...)
+	return lc
+}
+
+// AddUsers adds the "users" edges to the User entity.
+func (lc *LinkCreate) AddUsers(u ...*User) *LinkCreate {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return lc.AddUserIDs(ids...)
 }
 
 // Mutation returns the LinkMutation object of the builder.
@@ -208,14 +231,6 @@ func (lc *LinkCreate) check() error {
 	if v, ok := lc.mutation.Description(); ok {
 		if err := link.DescriptionValidator(v); err != nil {
 			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Link.description": %w`, err)}
-		}
-	}
-	if _, ok := lc.mutation.ImageURL(); !ok {
-		return &ValidationError{Name: "image_url", err: errors.New(`ent: missing required field "Link.image_url"`)}
-	}
-	if v, ok := lc.mutation.ImageURL(); ok {
-		if err := link.ImageURLValidator(v); err != nil {
-			return &ValidationError{Name: "image_url", err: fmt.Errorf(`ent: validator failed for field "Link.image_url": %w`, err)}
 		}
 	}
 	if _, ok := lc.mutation.URL(); !ok {
@@ -333,7 +348,26 @@ func (lc *LinkCreate) createSpec() (*Link, *sqlgraph.CreateSpec) {
 		for _, k := range nodes {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
-		_node.user_bookmarks = &nodes[0]
+		_node.user_links = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := lc.mutation.UsersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec

@@ -40,10 +40,8 @@ type Config struct {
 }
 
 type ResolverRoot interface {
-	Link() LinkResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
-	User() UserResolver
 }
 
 type DirectiveRoot struct {
@@ -62,8 +60,10 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CreateLink func(childComplexity int, createLinkInput model.CreateLinkInput) int
-		Register   func(childComplexity int, createUserInput model.CreateUserInput) int
+		BookmarkLink func(childComplexity int, id uuid.UUID) int
+		CreateLink   func(childComplexity int, createLinkInput model.CreateLinkInput) int
+		Login        func(childComplexity int, loginUserInput model.LoginUserInput) int
+		Register     func(childComplexity int, createUserInput model.CreateUserInput) int
 	}
 
 	Query struct {
@@ -84,20 +84,15 @@ type ComplexityRoot struct {
 	}
 }
 
-type LinkResolver interface {
-	Owner(ctx context.Context, obj *ent.Link) (*ent.User, error)
-}
 type MutationResolver interface {
 	CreateLink(ctx context.Context, createLinkInput model.CreateLinkInput) (*ent.Link, error)
+	BookmarkLink(ctx context.Context, id uuid.UUID) (*ent.Link, error)
 	Register(ctx context.Context, createUserInput model.CreateUserInput) (*ent.User, error)
+	Login(ctx context.Context, loginUserInput model.LoginUserInput) (*ent.User, error)
 }
 type QueryResolver interface {
 	Link(ctx context.Context, id uuid.UUID) (*ent.Link, error)
 	Me(ctx context.Context) (*ent.User, error)
-}
-type UserResolver interface {
-	Bookmarks(ctx context.Context, obj *ent.User) ([]*ent.Link, error)
-	Links(ctx context.Context, obj *ent.User) ([]*ent.Link, error)
 }
 
 type executableSchema struct {
@@ -171,6 +166,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Link.UpdatedAt(childComplexity), true
 
+	case "Mutation.bookmarkLink":
+		if e.complexity.Mutation.BookmarkLink == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_bookmarkLink_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.BookmarkLink(childComplexity, args["id"].(uuid.UUID)), true
+
 	case "Mutation.createLink":
 		if e.complexity.Mutation.CreateLink == nil {
 			break
@@ -182,6 +189,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateLink(childComplexity, args["createLinkInput"].(model.CreateLinkInput)), true
+
+	case "Mutation.login":
+		if e.complexity.Mutation.Login == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_login_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Login(childComplexity, args["loginUserInput"].(model.LoginUserInput)), true
 
 	case "Mutation.register":
 		if e.complexity.Mutation.Register == nil {
@@ -357,11 +376,11 @@ input CreateLinkInput {
   description: String!
   image: Upload
   url: String!
-  ownerID: ID!
 }
 
 extend type Mutation {
   createLink(createLinkInput: CreateLinkInput!): Link!
+  bookmarkLink(id: ID!): Link!
 }
 
 extend type Query {
@@ -400,6 +419,10 @@ input CreateUserInput {
   password: String!
   image: Upload
 }
+input LoginUserInput {
+  email: String!
+  password: String!
+}
 
 extend type Query {
   me: User!
@@ -407,6 +430,7 @@ extend type Query {
 
 extend type Mutation {
   register(createUserInput: CreateUserInput!): User!
+  login(loginUserInput: LoginUserInput!): User!
 }
 `, BuiltIn: false},
 }
@@ -415,6 +439,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_bookmarkLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 uuid.UUID
+	if tmp, ok := rawArgs["id"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+		arg0, err = ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_createLink_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -428,6 +467,21 @@ func (ec *executionContext) field_Mutation_createLink_args(ctx context.Context, 
 		}
 	}
 	args["createLinkInput"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.LoginUserInput
+	if tmp, ok := rawArgs["loginUserInput"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("loginUserInput"))
+		arg0, err = ec.unmarshalNLoginUserInput2githubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋgraphᚋmodelᚐLoginUserInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["loginUserInput"] = arg0
 	return args, nil
 }
 
@@ -698,13 +752,13 @@ func (ec *executionContext) _Link_owner(ctx context.Context, field graphql.Colle
 		Field:      field,
 		Args:       nil,
 		IsMethod:   true,
-		IsResolver: true,
+		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Link().Owner(rctx, obj)
+		return obj.Owner(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -833,6 +887,48 @@ func (ec *executionContext) _Mutation_createLink(ctx context.Context, field grap
 	return ec.marshalNLink2ᚖgithubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋentᚐLink(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_bookmarkLink(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_bookmarkLink_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().BookmarkLink(rctx, args["id"].(uuid.UUID))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.Link)
+	fc.Result = res
+	return ec.marshalNLink2ᚖgithubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋentᚐLink(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_register(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -859,6 +955,48 @@ func (ec *executionContext) _Mutation_register(ctx context.Context, field graphq
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Mutation().Register(rctx, args["createUserInput"].(model.CreateUserInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*ent.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋentᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_login(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_login_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().Login(rctx, args["loginUserInput"].(model.LoginUserInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1204,13 +1342,13 @@ func (ec *executionContext) _User_bookmarks(ctx context.Context, field graphql.C
 		Field:      field,
 		Args:       nil,
 		IsMethod:   true,
-		IsResolver: true,
+		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.User().Bookmarks(rctx, obj)
+		return obj.Bookmarks(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1236,13 +1374,13 @@ func (ec *executionContext) _User_links(ctx context.Context, field graphql.Colle
 		Field:      field,
 		Args:       nil,
 		IsMethod:   true,
-		IsResolver: true,
+		IsResolver: false,
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.User().Links(rctx, obj)
+		return obj.Links(ctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2489,14 +2627,6 @@ func (ec *executionContext) unmarshalInputCreateLinkInput(ctx context.Context, o
 			if err != nil {
 				return it, err
 			}
-		case "ownerID":
-			var err error
-
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("ownerID"))
-			it.OwnerID, err = ec.unmarshalNID2githubᚗcomᚋgoogleᚋuuidᚐUUID(ctx, v)
-			if err != nil {
-				return it, err
-			}
 		}
 	}
 
@@ -2533,6 +2663,37 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("image"))
 			it.Image, err = ec.unmarshalOUpload2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputLoginUserInput(ctx context.Context, obj interface{}) (model.LoginUserInput, error) {
+	var it model.LoginUserInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	for k, v := range asMap {
+		switch k {
+		case "email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			it.Email, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			it.Password, err = ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -2687,9 +2848,29 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "bookmarkLink":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_bookmarkLink(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "register":
 			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_register(ctx, field)
+			}
+
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
+
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "login":
+			innerFunc := func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_login(ctx, field)
 			}
 
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, innerFunc)
@@ -3380,20 +3561,19 @@ func (ec *executionContext) marshalNLink2ᚖgithubᚗcomᚋippsavᚋawesomeᚑli
 	return ec._Link(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNLoginUserInput2githubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋgraphᚋmodelᚐLoginUserInput(ctx context.Context, v interface{}) (model.LoginUserInput, error) {
+	res, err := ec.unmarshalInputLoginUserInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNRole2githubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋentᚋuserᚐRole(ctx context.Context, v interface{}) (user.Role, error) {
-	tmp, err := graphql.UnmarshalString(v)
-	res := user.Role(tmp)
+	var res user.Role
+	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNRole2githubᚗcomᚋippsavᚋawesomeᚑlinksᚋapiᚋentᚋuserᚐRole(ctx context.Context, sel ast.SelectionSet, v user.Role) graphql.Marshaler {
-	res := graphql.MarshalString(string(v))
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-	}
-	return res
+	return v
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {

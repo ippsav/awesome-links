@@ -14,11 +14,11 @@ input CreateLinkInput {
   description: String!
   image: Upload
   url: String!
-  ownerID: ID!
 }
 
 extend type Mutation {
   createLink(createLinkInput: CreateLinkInput!): Link!
+  bookmarkLink(id: ID!): Link!
 }
 
 extend type Query {

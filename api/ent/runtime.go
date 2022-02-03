@@ -25,10 +25,6 @@ func init() {
 	linkDescDescription := linkFields[2].Descriptor()
 	// link.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
 	link.DescriptionValidator = linkDescDescription.Validators[0].(func(string) error)
-	// linkDescImageURL is the schema descriptor for image_url field.
-	linkDescImageURL := linkFields[3].Descriptor()
-	// link.ImageURLValidator is a validator for the "image_url" field. It is called by the builders before save.
-	link.ImageURLValidator = linkDescImageURL.Validators[0].(func(string) error)
 	// linkDescURL is the schema descriptor for url field.
 	linkDescURL := linkFields[4].Descriptor()
 	// link.URLValidator is a validator for the "url" field. It is called by the builders before save.

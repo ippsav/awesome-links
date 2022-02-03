@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"math"
@@ -28,6 +29,7 @@ type LinkQuery struct {
 	predicates []predicate.Link
 	// eager-loading edges.
 	withOwner *UserQuery
+	withUsers *UserQuery
 	withFKs   bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -80,6 +82,28 @@ func (lq *LinkQuery) QueryOwner() *UserQuery {
 			sqlgraph.From(link.Table, link.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, link.OwnerTable, link.OwnerColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(lq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryUsers chains the current query on the "users" edge.
+func (lq *LinkQuery) QueryUsers() *UserQuery {
+	query := &UserQuery{config: lq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := lq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := lq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(link.Table, link.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, link.UsersTable, link.UsersPrimaryKey...),
 		)
 		fromU = sqlgraph.SetNeighbors(lq.driver.Dialect(), step)
 		return fromU, nil
@@ -269,6 +293,7 @@ func (lq *LinkQuery) Clone() *LinkQuery {
 		order:      append([]OrderFunc{}, lq.order...),
 		predicates: append([]predicate.Link{}, lq.predicates...),
 		withOwner:  lq.withOwner.Clone(),
+		withUsers:  lq.withUsers.Clone(),
 		// clone intermediate query.
 		sql:  lq.sql.Clone(),
 		path: lq.path,
@@ -283,6 +308,17 @@ func (lq *LinkQuery) WithOwner(opts ...func(*UserQuery)) *LinkQuery {
 		opt(query)
 	}
 	lq.withOwner = query
+	return lq
+}
+
+// WithUsers tells the query-builder to eager-load the nodes that are connected to
+// the "users" edge. The optional arguments are used to configure the query builder of the edge.
+func (lq *LinkQuery) WithUsers(opts ...func(*UserQuery)) *LinkQuery {
+	query := &UserQuery{config: lq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	lq.withUsers = query
 	return lq
 }
 
@@ -352,8 +388,9 @@ func (lq *LinkQuery) sqlAll(ctx context.Context) ([]*Link, error) {
 		nodes       = []*Link{}
 		withFKs     = lq.withFKs
 		_spec       = lq.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			lq.withOwner != nil,
+			lq.withUsers != nil,
 		}
 	)
 	if lq.withOwner != nil {
@@ -386,10 +423,10 @@ func (lq *LinkQuery) sqlAll(ctx context.Context) ([]*Link, error) {
 		ids := make([]uuid.UUID, 0, len(nodes))
 		nodeids := make(map[uuid.UUID][]*Link)
 		for i := range nodes {
-			if nodes[i].user_bookmarks == nil {
+			if nodes[i].user_links == nil {
 				continue
 			}
-			fk := *nodes[i].user_bookmarks
+			fk := *nodes[i].user_links
 			if _, ok := nodeids[fk]; !ok {
 				ids = append(ids, fk)
 			}
@@ -403,10 +440,75 @@ func (lq *LinkQuery) sqlAll(ctx context.Context) ([]*Link, error) {
 		for _, n := range neighbors {
 			nodes, ok := nodeids[n.ID]
 			if !ok {
-				return nil, fmt.Errorf(`unexpected foreign-key "user_bookmarks" returned %v`, n.ID)
+				return nil, fmt.Errorf(`unexpected foreign-key "user_links" returned %v`, n.ID)
 			}
 			for i := range nodes {
 				nodes[i].Edges.Owner = n
+			}
+		}
+	}
+
+	if query := lq.withUsers; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		ids := make(map[uuid.UUID]*Link, len(nodes))
+		for _, node := range nodes {
+			ids[node.ID] = node
+			fks = append(fks, node.ID)
+			node.Edges.Users = []*User{}
+		}
+		var (
+			edgeids []uuid.UUID
+			edges   = make(map[uuid.UUID][]*Link)
+		)
+		_spec := &sqlgraph.EdgeQuerySpec{
+			Edge: &sqlgraph.EdgeSpec{
+				Inverse: true,
+				Table:   link.UsersTable,
+				Columns: link.UsersPrimaryKey,
+			},
+			Predicate: func(s *sql.Selector) {
+				s.Where(sql.InValues(link.UsersPrimaryKey[1], fks...))
+			},
+			ScanValues: func() [2]interface{} {
+				return [2]interface{}{new(uuid.UUID), new(uuid.UUID)}
+			},
+			Assign: func(out, in interface{}) error {
+				eout, ok := out.(*uuid.UUID)
+				if !ok || eout == nil {
+					return fmt.Errorf("unexpected id value for edge-out")
+				}
+				ein, ok := in.(*uuid.UUID)
+				if !ok || ein == nil {
+					return fmt.Errorf("unexpected id value for edge-in")
+				}
+				outValue := *eout
+				inValue := *ein
+				node, ok := ids[outValue]
+				if !ok {
+					return fmt.Errorf("unexpected node id in edges: %v", outValue)
+				}
+				if _, ok := edges[inValue]; !ok {
+					edgeids = append(edgeids, inValue)
+				}
+				edges[inValue] = append(edges[inValue], node)
+				return nil
+			},
+		}
+		if err := sqlgraph.QueryEdges(ctx, lq.driver, _spec); err != nil {
+			return nil, fmt.Errorf(`query edges "users": %w`, err)
+		}
+		query.Where(user.IDIn(edgeids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := edges[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected "users" node returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.Users = append(nodes[i].Edges.Users, n)
 			}
 		}
 	}

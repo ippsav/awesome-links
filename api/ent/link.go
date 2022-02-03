@@ -32,17 +32,19 @@ type Link struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the LinkQuery when eager-loading is set.
-	Edges          LinkEdges `json:"edges"`
-	user_bookmarks *uuid.UUID
+	Edges      LinkEdges `json:"edges"`
+	user_links *uuid.UUID
 }
 
 // LinkEdges holds the relations/edges for other nodes in the graph.
 type LinkEdges struct {
 	// Owner holds the value of the owner edge.
 	Owner *User `json:"owner,omitempty"`
+	// Users holds the value of the users edge.
+	Users []*User `json:"users,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // OwnerOrErr returns the Owner value or an error if the edge
@@ -59,6 +61,15 @@ func (e LinkEdges) OwnerOrErr() (*User, error) {
 	return nil, &NotLoadedError{edge: "owner"}
 }
 
+// UsersOrErr returns the Users value or an error if the edge
+// was not loaded in eager-loading.
+func (e LinkEdges) UsersOrErr() ([]*User, error) {
+	if e.loadedTypes[1] {
+		return e.Users, nil
+	}
+	return nil, &NotLoadedError{edge: "users"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Link) scanValues(columns []string) ([]interface{}, error) {
 	values := make([]interface{}, len(columns))
@@ -70,7 +81,7 @@ func (*Link) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new(sql.NullTime)
 		case link.FieldID:
 			values[i] = new(uuid.UUID)
-		case link.ForeignKeys[0]: // user_bookmarks
+		case link.ForeignKeys[0]: // user_links
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type Link", columns[i])
@@ -131,10 +142,10 @@ func (l *Link) assignValues(columns []string, values []interface{}) error {
 			}
 		case link.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_bookmarks", values[i])
+				return fmt.Errorf("unexpected type %T for field user_links", values[i])
 			} else if value.Valid {
-				l.user_bookmarks = new(uuid.UUID)
-				*l.user_bookmarks = *value.S.(*uuid.UUID)
+				l.user_links = new(uuid.UUID)
+				*l.user_links = *value.S.(*uuid.UUID)
 			}
 		}
 	}
@@ -144,6 +155,11 @@ func (l *Link) assignValues(columns []string, values []interface{}) error {
 // QueryOwner queries the "owner" edge of the Link entity.
 func (l *Link) QueryOwner() *UserQuery {
 	return (&LinkClient{config: l.config}).QueryOwner(l)
+}
+
+// QueryUsers queries the "users" edge of the Link entity.
+func (l *Link) QueryUsers() *UserQuery {
+	return (&LinkClient{config: l.config}).QueryUsers(l)
 }
 
 // Update returns a builder for updating this Link.

@@ -36,17 +36,28 @@ type User struct {
 
 // UserEdges holds the relations/edges for other nodes in the graph.
 type UserEdges struct {
+	// Links holds the value of the links edge.
+	Links []*Link `json:"links,omitempty"`
 	// Bookmarks holds the value of the bookmarks edge.
 	Bookmarks []*Link `json:"bookmarks,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
+}
+
+// LinksOrErr returns the Links value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) LinksOrErr() ([]*Link, error) {
+	if e.loadedTypes[0] {
+		return e.Links, nil
+	}
+	return nil, &NotLoadedError{edge: "links"}
 }
 
 // BookmarksOrErr returns the Bookmarks value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) BookmarksOrErr() ([]*Link, error) {
-	if e.loadedTypes[0] {
+	if e.loadedTypes[1] {
 		return e.Bookmarks, nil
 	}
 	return nil, &NotLoadedError{edge: "bookmarks"}
@@ -123,6 +134,11 @@ func (u *User) assignValues(columns []string, values []interface{}) error {
 		}
 	}
 	return nil
+}
+
+// QueryLinks queries the "links" edge of the User entity.
+func (u *User) QueryLinks() *LinkQuery {
+	return (&UserClient{config: u.config}).QueryLinks(u)
 }
 
 // QueryBookmarks queries the "bookmarks" edge of the User entity.

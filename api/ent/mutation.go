@@ -45,6 +45,9 @@ type LinkMutation struct {
 	clearedFields map[string]struct{}
 	owner         *uuid.UUID
 	clearedowner  bool
+	users         map[uuid.UUID]struct{}
+	removedusers  map[uuid.UUID]struct{}
+	clearedusers  bool
 	done          bool
 	oldValue      func(context.Context) (*Link, error)
 	predicates    []predicate.Link
@@ -257,9 +260,22 @@ func (m *LinkMutation) OldImageURL(ctx context.Context) (v string, err error) {
 	return oldValue.ImageURL, nil
 }
 
+// ClearImageURL clears the value of the "image_url" field.
+func (m *LinkMutation) ClearImageURL() {
+	m.image_url = nil
+	m.clearedFields[link.FieldImageURL] = struct{}{}
+}
+
+// ImageURLCleared returns if the "image_url" field was cleared in this mutation.
+func (m *LinkMutation) ImageURLCleared() bool {
+	_, ok := m.clearedFields[link.FieldImageURL]
+	return ok
+}
+
 // ResetImageURL resets all changes to the "image_url" field.
 func (m *LinkMutation) ResetImageURL() {
 	m.image_url = nil
+	delete(m.clearedFields, link.FieldImageURL)
 }
 
 // SetURL sets the "url" field.
@@ -407,6 +423,60 @@ func (m *LinkMutation) OwnerIDs() (ids []uuid.UUID) {
 func (m *LinkMutation) ResetOwner() {
 	m.owner = nil
 	m.clearedowner = false
+}
+
+// AddUserIDs adds the "users" edge to the User entity by ids.
+func (m *LinkMutation) AddUserIDs(ids ...uuid.UUID) {
+	if m.users == nil {
+		m.users = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.users[ids[i]] = struct{}{}
+	}
+}
+
+// ClearUsers clears the "users" edge to the User entity.
+func (m *LinkMutation) ClearUsers() {
+	m.clearedusers = true
+}
+
+// UsersCleared reports if the "users" edge to the User entity was cleared.
+func (m *LinkMutation) UsersCleared() bool {
+	return m.clearedusers
+}
+
+// RemoveUserIDs removes the "users" edge to the User entity by IDs.
+func (m *LinkMutation) RemoveUserIDs(ids ...uuid.UUID) {
+	if m.removedusers == nil {
+		m.removedusers = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.users, ids[i])
+		m.removedusers[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedUsers returns the removed IDs of the "users" edge to the User entity.
+func (m *LinkMutation) RemovedUsersIDs() (ids []uuid.UUID) {
+	for id := range m.removedusers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// UsersIDs returns the "users" edge IDs in the mutation.
+func (m *LinkMutation) UsersIDs() (ids []uuid.UUID) {
+	for id := range m.users {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetUsers resets all changes to the "users" edge.
+func (m *LinkMutation) ResetUsers() {
+	m.users = nil
+	m.clearedusers = false
+	m.removedusers = nil
 }
 
 // Where appends a list predicates to the LinkMutation builder.
@@ -568,7 +638,11 @@ func (m *LinkMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *LinkMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(link.FieldImageURL) {
+		fields = append(fields, link.FieldImageURL)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -581,6 +655,11 @@ func (m *LinkMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *LinkMutation) ClearField(name string) error {
+	switch name {
+	case link.FieldImageURL:
+		m.ClearImageURL()
+		return nil
+	}
 	return fmt.Errorf("unknown Link nullable field %s", name)
 }
 
@@ -612,9 +691,12 @@ func (m *LinkMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *LinkMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.owner != nil {
 		edges = append(edges, link.EdgeOwner)
+	}
+	if m.users != nil {
+		edges = append(edges, link.EdgeUsers)
 	}
 	return edges
 }
@@ -627,13 +709,22 @@ func (m *LinkMutation) AddedIDs(name string) []ent.Value {
 		if id := m.owner; id != nil {
 			return []ent.Value{*id}
 		}
+	case link.EdgeUsers:
+		ids := make([]ent.Value, 0, len(m.users))
+		for id := range m.users {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *LinkMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.removedusers != nil {
+		edges = append(edges, link.EdgeUsers)
+	}
 	return edges
 }
 
@@ -641,15 +732,24 @@ func (m *LinkMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *LinkMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case link.EdgeUsers:
+		ids := make([]ent.Value, 0, len(m.removedusers))
+		for id := range m.removedusers {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *LinkMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedowner {
 		edges = append(edges, link.EdgeOwner)
+	}
+	if m.clearedusers {
+		edges = append(edges, link.EdgeUsers)
 	}
 	return edges
 }
@@ -660,6 +760,8 @@ func (m *LinkMutation) EdgeCleared(name string) bool {
 	switch name {
 	case link.EdgeOwner:
 		return m.clearedowner
+	case link.EdgeUsers:
+		return m.clearedusers
 	}
 	return false
 }
@@ -682,6 +784,9 @@ func (m *LinkMutation) ResetEdge(name string) error {
 	case link.EdgeOwner:
 		m.ResetOwner()
 		return nil
+	case link.EdgeUsers:
+		m.ResetUsers()
+		return nil
 	}
 	return fmt.Errorf("unknown Link edge %s", name)
 }
@@ -699,6 +804,9 @@ type UserMutation struct {
 	created_at       *time.Time
 	updated_at       *time.Time
 	clearedFields    map[string]struct{}
+	links            map[uuid.UUID]struct{}
+	removedlinks     map[uuid.UUID]struct{}
+	clearedlinks     bool
 	bookmarks        map[uuid.UUID]struct{}
 	removedbookmarks map[uuid.UUID]struct{}
 	clearedbookmarks bool
@@ -914,9 +1022,22 @@ func (m *UserMutation) OldImageURL(ctx context.Context) (v string, err error) {
 	return oldValue.ImageURL, nil
 }
 
+// ClearImageURL clears the value of the "image_url" field.
+func (m *UserMutation) ClearImageURL() {
+	m.image_url = nil
+	m.clearedFields[user.FieldImageURL] = struct{}{}
+}
+
+// ImageURLCleared returns if the "image_url" field was cleared in this mutation.
+func (m *UserMutation) ImageURLCleared() bool {
+	_, ok := m.clearedFields[user.FieldImageURL]
+	return ok
+}
+
 // ResetImageURL resets all changes to the "image_url" field.
 func (m *UserMutation) ResetImageURL() {
 	m.image_url = nil
+	delete(m.clearedFields, user.FieldImageURL)
 }
 
 // SetRole sets the "role" field.
@@ -1025,6 +1146,60 @@ func (m *UserMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error
 // ResetUpdatedAt resets all changes to the "updated_at" field.
 func (m *UserMutation) ResetUpdatedAt() {
 	m.updated_at = nil
+}
+
+// AddLinkIDs adds the "links" edge to the Link entity by ids.
+func (m *UserMutation) AddLinkIDs(ids ...uuid.UUID) {
+	if m.links == nil {
+		m.links = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		m.links[ids[i]] = struct{}{}
+	}
+}
+
+// ClearLinks clears the "links" edge to the Link entity.
+func (m *UserMutation) ClearLinks() {
+	m.clearedlinks = true
+}
+
+// LinksCleared reports if the "links" edge to the Link entity was cleared.
+func (m *UserMutation) LinksCleared() bool {
+	return m.clearedlinks
+}
+
+// RemoveLinkIDs removes the "links" edge to the Link entity by IDs.
+func (m *UserMutation) RemoveLinkIDs(ids ...uuid.UUID) {
+	if m.removedlinks == nil {
+		m.removedlinks = make(map[uuid.UUID]struct{})
+	}
+	for i := range ids {
+		delete(m.links, ids[i])
+		m.removedlinks[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedLinks returns the removed IDs of the "links" edge to the Link entity.
+func (m *UserMutation) RemovedLinksIDs() (ids []uuid.UUID) {
+	for id := range m.removedlinks {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// LinksIDs returns the "links" edge IDs in the mutation.
+func (m *UserMutation) LinksIDs() (ids []uuid.UUID) {
+	for id := range m.links {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetLinks resets all changes to the "links" edge.
+func (m *UserMutation) ResetLinks() {
+	m.links = nil
+	m.clearedlinks = false
+	m.removedlinks = nil
 }
 
 // AddBookmarkIDs adds the "bookmarks" edge to the Link entity by ids.
@@ -1240,7 +1415,11 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *UserMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(user.FieldImageURL) {
+		fields = append(fields, user.FieldImageURL)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -1253,6 +1432,11 @@ func (m *UserMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *UserMutation) ClearField(name string) error {
+	switch name {
+	case user.FieldImageURL:
+		m.ClearImageURL()
+		return nil
+	}
 	return fmt.Errorf("unknown User nullable field %s", name)
 }
 
@@ -1284,7 +1468,10 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.links != nil {
+		edges = append(edges, user.EdgeLinks)
+	}
 	if m.bookmarks != nil {
 		edges = append(edges, user.EdgeBookmarks)
 	}
@@ -1295,6 +1482,12 @@ func (m *UserMutation) AddedEdges() []string {
 // name in this mutation.
 func (m *UserMutation) AddedIDs(name string) []ent.Value {
 	switch name {
+	case user.EdgeLinks:
+		ids := make([]ent.Value, 0, len(m.links))
+		for id := range m.links {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeBookmarks:
 		ids := make([]ent.Value, 0, len(m.bookmarks))
 		for id := range m.bookmarks {
@@ -1307,7 +1500,10 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.removedlinks != nil {
+		edges = append(edges, user.EdgeLinks)
+	}
 	if m.removedbookmarks != nil {
 		edges = append(edges, user.EdgeBookmarks)
 	}
@@ -1318,6 +1514,12 @@ func (m *UserMutation) RemovedEdges() []string {
 // the given name in this mutation.
 func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 	switch name {
+	case user.EdgeLinks:
+		ids := make([]ent.Value, 0, len(m.removedlinks))
+		for id := range m.removedlinks {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeBookmarks:
 		ids := make([]ent.Value, 0, len(m.removedbookmarks))
 		for id := range m.removedbookmarks {
@@ -1330,7 +1532,10 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
+	if m.clearedlinks {
+		edges = append(edges, user.EdgeLinks)
+	}
 	if m.clearedbookmarks {
 		edges = append(edges, user.EdgeBookmarks)
 	}
@@ -1341,6 +1546,8 @@ func (m *UserMutation) ClearedEdges() []string {
 // was cleared in this mutation.
 func (m *UserMutation) EdgeCleared(name string) bool {
 	switch name {
+	case user.EdgeLinks:
+		return m.clearedlinks
 	case user.EdgeBookmarks:
 		return m.clearedbookmarks
 	}
@@ -1359,6 +1566,9 @@ func (m *UserMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *UserMutation) ResetEdge(name string) error {
 	switch name {
+	case user.EdgeLinks:
+		m.ResetLinks()
+		return nil
 	case user.EdgeBookmarks:
 		m.ResetBookmarks()
 		return nil

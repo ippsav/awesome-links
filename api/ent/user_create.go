@@ -40,6 +40,14 @@ func (uc *UserCreate) SetImageURL(s string) *UserCreate {
 	return uc
 }
 
+// SetNillableImageURL sets the "image_url" field if the given value is not nil.
+func (uc *UserCreate) SetNillableImageURL(s *string) *UserCreate {
+	if s != nil {
+		uc.SetImageURL(*s)
+	}
+	return uc
+}
+
 // SetRole sets the "role" field.
 func (uc *UserCreate) SetRole(u user.Role) *UserCreate {
 	uc.mutation.SetRole(u)
@@ -94,6 +102,21 @@ func (uc *UserCreate) SetNillableID(u *uuid.UUID) *UserCreate {
 		uc.SetID(*u)
 	}
 	return uc
+}
+
+// AddLinkIDs adds the "links" edge to the Link entity by IDs.
+func (uc *UserCreate) AddLinkIDs(ids ...uuid.UUID) *UserCreate {
+	uc.mutation.AddLinkIDs(ids...)
+	return uc
+}
+
+// AddLinks adds the "links" edges to the Link entity.
+func (uc *UserCreate) AddLinks(l ...*Link) *UserCreate {
+	ids := make([]uuid.UUID, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uc.AddLinkIDs(ids...)
 }
 
 // AddBookmarkIDs adds the "bookmarks" edge to the Link entity by IDs.
@@ -218,9 +241,6 @@ func (uc *UserCreate) check() error {
 			return &ValidationError{Name: "password", err: fmt.Errorf(`ent: validator failed for field "User.password": %w`, err)}
 		}
 	}
-	if _, ok := uc.mutation.ImageURL(); !ok {
-		return &ValidationError{Name: "image_url", err: errors.New(`ent: missing required field "User.image_url"`)}
-	}
 	if _, ok := uc.mutation.Role(); !ok {
 		return &ValidationError{Name: "role", err: errors.New(`ent: missing required field "User.role"`)}
 	}
@@ -319,12 +339,31 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		})
 		_node.UpdatedAt = value
 	}
-	if nodes := uc.mutation.BookmarksIDs(); len(nodes) > 0 {
+	if nodes := uc.mutation.LinksIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := uc.mutation.BookmarksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

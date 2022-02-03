@@ -7,30 +7,22 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/ippsav/awesome-links/api/ent"
-	"github.com/ippsav/awesome-links/api/graph/generated"
 	"github.com/ippsav/awesome-links/api/graph/model"
 )
 
 func (r *mutationResolver) Register(ctx context.Context, createUserInput model.CreateUserInput) (*ent.User, error) {
 	us, err := r.controller.User.Create(ctx, createUserInput)
-	fmt.Println(err)
-	return us, nil
+	return us, err
 }
 
-func (r *queryResolver) Me(ctx context.Context) (*ent.User, error) {
+func (r *mutationResolver) Login(ctx context.Context, loginUserInput model.LoginUserInput) (*ent.User, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *userResolver) Bookmarks(ctx context.Context, obj *ent.User) ([]*ent.Link, error) {
-	return obj.QueryBookmarks().All(ctx)
+func (r *queryResolver) Me(ctx context.Context) (*ent.User, error) {
+	//placeholder
+	id := uuid.New()
+	return r.controller.User.GetByID(ctx, id)
 }
-
-func (r *userResolver) Links(ctx context.Context, obj *ent.User) ([]*ent.Link, error) {
-	return r.controller.Link.GetUserLinks(ctx, obj.ID)
-}
-
-// User returns generated.UserResolver implementation.
-func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
-
-type userResolver struct{ *Resolver }

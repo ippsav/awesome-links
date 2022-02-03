@@ -48,6 +48,20 @@ func (lu *LinkUpdate) SetImageURL(s string) *LinkUpdate {
 	return lu
 }
 
+// SetNillableImageURL sets the "image_url" field if the given value is not nil.
+func (lu *LinkUpdate) SetNillableImageURL(s *string) *LinkUpdate {
+	if s != nil {
+		lu.SetImageURL(*s)
+	}
+	return lu
+}
+
+// ClearImageURL clears the value of the "image_url" field.
+func (lu *LinkUpdate) ClearImageURL() *LinkUpdate {
+	lu.mutation.ClearImageURL()
+	return lu
+}
+
 // SetURL sets the "url" field.
 func (lu *LinkUpdate) SetURL(s string) *LinkUpdate {
 	lu.mutation.SetURL(s)
@@ -93,6 +107,21 @@ func (lu *LinkUpdate) SetOwner(u *User) *LinkUpdate {
 	return lu.SetOwnerID(u.ID)
 }
 
+// AddUserIDs adds the "users" edge to the User entity by IDs.
+func (lu *LinkUpdate) AddUserIDs(ids ...uuid.UUID) *LinkUpdate {
+	lu.mutation.AddUserIDs(ids...)
+	return lu
+}
+
+// AddUsers adds the "users" edges to the User entity.
+func (lu *LinkUpdate) AddUsers(u ...*User) *LinkUpdate {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return lu.AddUserIDs(ids...)
+}
+
 // Mutation returns the LinkMutation object of the builder.
 func (lu *LinkUpdate) Mutation() *LinkMutation {
 	return lu.mutation
@@ -102,6 +131,27 @@ func (lu *LinkUpdate) Mutation() *LinkMutation {
 func (lu *LinkUpdate) ClearOwner() *LinkUpdate {
 	lu.mutation.ClearOwner()
 	return lu
+}
+
+// ClearUsers clears all "users" edges to the User entity.
+func (lu *LinkUpdate) ClearUsers() *LinkUpdate {
+	lu.mutation.ClearUsers()
+	return lu
+}
+
+// RemoveUserIDs removes the "users" edge to User entities by IDs.
+func (lu *LinkUpdate) RemoveUserIDs(ids ...uuid.UUID) *LinkUpdate {
+	lu.mutation.RemoveUserIDs(ids...)
+	return lu
+}
+
+// RemoveUsers removes "users" edges to User entities.
+func (lu *LinkUpdate) RemoveUsers(u ...*User) *LinkUpdate {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return lu.RemoveUserIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -185,11 +235,6 @@ func (lu *LinkUpdate) check() error {
 			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Link.description": %w`, err)}
 		}
 	}
-	if v, ok := lu.mutation.ImageURL(); ok {
-		if err := link.ImageURLValidator(v); err != nil {
-			return &ValidationError{Name: "image_url", err: fmt.Errorf(`ent: validator failed for field "Link.image_url": %w`, err)}
-		}
-	}
 	if v, ok := lu.mutation.URL(); ok {
 		if err := link.URLValidator(v); err != nil {
 			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "Link.url": %w`, err)}
@@ -234,6 +279,12 @@ func (lu *LinkUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
+			Column: link.FieldImageURL,
+		})
+	}
+	if lu.mutation.ImageURLCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
 			Column: link.FieldImageURL,
 		})
 	}
@@ -293,6 +344,60 @@ func (lu *LinkUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if lu.mutation.UsersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := lu.mutation.RemovedUsersIDs(); len(nodes) > 0 && !lu.mutation.UsersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := lu.mutation.UsersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, lu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{link.Label}
@@ -327,6 +432,20 @@ func (luo *LinkUpdateOne) SetDescription(s string) *LinkUpdateOne {
 // SetImageURL sets the "image_url" field.
 func (luo *LinkUpdateOne) SetImageURL(s string) *LinkUpdateOne {
 	luo.mutation.SetImageURL(s)
+	return luo
+}
+
+// SetNillableImageURL sets the "image_url" field if the given value is not nil.
+func (luo *LinkUpdateOne) SetNillableImageURL(s *string) *LinkUpdateOne {
+	if s != nil {
+		luo.SetImageURL(*s)
+	}
+	return luo
+}
+
+// ClearImageURL clears the value of the "image_url" field.
+func (luo *LinkUpdateOne) ClearImageURL() *LinkUpdateOne {
+	luo.mutation.ClearImageURL()
 	return luo
 }
 
@@ -375,6 +494,21 @@ func (luo *LinkUpdateOne) SetOwner(u *User) *LinkUpdateOne {
 	return luo.SetOwnerID(u.ID)
 }
 
+// AddUserIDs adds the "users" edge to the User entity by IDs.
+func (luo *LinkUpdateOne) AddUserIDs(ids ...uuid.UUID) *LinkUpdateOne {
+	luo.mutation.AddUserIDs(ids...)
+	return luo
+}
+
+// AddUsers adds the "users" edges to the User entity.
+func (luo *LinkUpdateOne) AddUsers(u ...*User) *LinkUpdateOne {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return luo.AddUserIDs(ids...)
+}
+
 // Mutation returns the LinkMutation object of the builder.
 func (luo *LinkUpdateOne) Mutation() *LinkMutation {
 	return luo.mutation
@@ -384,6 +518,27 @@ func (luo *LinkUpdateOne) Mutation() *LinkMutation {
 func (luo *LinkUpdateOne) ClearOwner() *LinkUpdateOne {
 	luo.mutation.ClearOwner()
 	return luo
+}
+
+// ClearUsers clears all "users" edges to the User entity.
+func (luo *LinkUpdateOne) ClearUsers() *LinkUpdateOne {
+	luo.mutation.ClearUsers()
+	return luo
+}
+
+// RemoveUserIDs removes the "users" edge to User entities by IDs.
+func (luo *LinkUpdateOne) RemoveUserIDs(ids ...uuid.UUID) *LinkUpdateOne {
+	luo.mutation.RemoveUserIDs(ids...)
+	return luo
+}
+
+// RemoveUsers removes "users" edges to User entities.
+func (luo *LinkUpdateOne) RemoveUsers(u ...*User) *LinkUpdateOne {
+	ids := make([]uuid.UUID, len(u))
+	for i := range u {
+		ids[i] = u[i].ID
+	}
+	return luo.RemoveUserIDs(ids...)
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -474,11 +629,6 @@ func (luo *LinkUpdateOne) check() error {
 			return &ValidationError{Name: "description", err: fmt.Errorf(`ent: validator failed for field "Link.description": %w`, err)}
 		}
 	}
-	if v, ok := luo.mutation.ImageURL(); ok {
-		if err := link.ImageURLValidator(v); err != nil {
-			return &ValidationError{Name: "image_url", err: fmt.Errorf(`ent: validator failed for field "Link.image_url": %w`, err)}
-		}
-	}
 	if v, ok := luo.mutation.URL(); ok {
 		if err := link.URLValidator(v); err != nil {
 			return &ValidationError{Name: "url", err: fmt.Errorf(`ent: validator failed for field "Link.url": %w`, err)}
@@ -543,6 +693,12 @@ func (luo *LinkUpdateOne) sqlSave(ctx context.Context) (_node *Link, err error) 
 			Column: link.FieldImageURL,
 		})
 	}
+	if luo.mutation.ImageURLCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: link.FieldImageURL,
+		})
+	}
 	if value, ok := luo.mutation.URL(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -586,6 +742,60 @@ func (luo *LinkUpdateOne) sqlSave(ctx context.Context) (_node *Link, err error) 
 			Inverse: true,
 			Table:   link.OwnerTable,
 			Columns: []string{link.OwnerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if luo.mutation.UsersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := luo.mutation.RemovedUsersIDs(); len(nodes) > 0 && !luo.mutation.UsersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := luo.mutation.UsersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   link.UsersTable,
+			Columns: link.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

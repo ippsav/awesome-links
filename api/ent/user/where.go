@@ -448,6 +448,20 @@ func ImageURLHasSuffix(v string) predicate.User {
 	})
 }
 
+// ImageURLIsNil applies the IsNil predicate on the "image_url" field.
+func ImageURLIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldImageURL)))
+	})
+}
+
+// ImageURLNotNil applies the NotNil predicate on the "image_url" field.
+func ImageURLNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldImageURL)))
+	})
+}
+
 // ImageURLEqualFold applies the EqualFold predicate on the "image_url" field.
 func ImageURLEqualFold(v string) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -662,13 +676,41 @@ func UpdatedAtLTE(v time.Time) predicate.User {
 	})
 }
 
+// HasLinks applies the HasEdge predicate on the "links" edge.
+func HasLinks() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(LinksTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LinksTable, LinksColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasLinksWith applies the HasEdge predicate on the "links" edge with a given conditions (other predicates).
+func HasLinksWith(preds ...predicate.Link) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(LinksInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, LinksTable, LinksColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasBookmarks applies the HasEdge predicate on the "bookmarks" edge.
 func HasBookmarks() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(BookmarksTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, BookmarksTable, BookmarksColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, BookmarksTable, BookmarksPrimaryKey...),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
@@ -680,7 +722,7 @@ func HasBookmarksWith(preds ...predicate.Link) predicate.User {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(BookmarksInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, BookmarksTable, BookmarksColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, BookmarksTable, BookmarksPrimaryKey...),
 		)
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {

@@ -20,7 +20,7 @@ func (Link) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.String("title").NotEmpty(),
 		field.String("description").NotEmpty(),
-		field.String("image_url"),
+		field.String("image_url").Optional(),
 		field.String("url").NotEmpty(),
 		field.Time("created_at").Default(time.Now),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),

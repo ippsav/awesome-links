@@ -4,6 +4,8 @@ package user
 
 import (
 	"fmt"
+	"io"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,17 +28,24 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeLinks holds the string denoting the links edge name in mutations.
+	EdgeLinks = "links"
 	// EdgeBookmarks holds the string denoting the bookmarks edge name in mutations.
 	EdgeBookmarks = "bookmarks"
 	// Table holds the table name of the user in the database.
 	Table = "users"
-	// BookmarksTable is the table that holds the bookmarks relation/edge.
-	BookmarksTable = "links"
+	// LinksTable is the table that holds the links relation/edge.
+	LinksTable = "links"
+	// LinksInverseTable is the table name for the Link entity.
+	// It exists in this package in order to avoid circular dependency with the "link" package.
+	LinksInverseTable = "links"
+	// LinksColumn is the table column denoting the links relation/edge.
+	LinksColumn = "user_links"
+	// BookmarksTable is the table that holds the bookmarks relation/edge. The primary key declared below.
+	BookmarksTable = "user_bookmarks"
 	// BookmarksInverseTable is the table name for the Link entity.
 	// It exists in this package in order to avoid circular dependency with the "link" package.
 	BookmarksInverseTable = "links"
-	// BookmarksColumn is the table column denoting the bookmarks relation/edge.
-	BookmarksColumn = "user_bookmarks"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -49,6 +58,12 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
+
+var (
+	// BookmarksPrimaryKey and BookmarksColumn2 are the table columns denoting the
+	// primary key for the bookmarks relation (M2M).
+	BookmarksPrimaryKey = []string{"user_id", "link_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -78,8 +93,8 @@ var (
 // Role defines the type for the "role" enum field.
 type Role string
 
-// RoleADMIN is the default value of the Role enum.
-const DefaultRole = RoleADMIN
+// RoleUSER is the default value of the Role enum.
+const DefaultRole = RoleUSER
 
 // Role values.
 const (
@@ -99,4 +114,22 @@ func RoleValidator(r Role) error {
 	default:
 		return fmt.Errorf("user: invalid enum value for role field: %q", r)
 	}
+}
+
+// MarshalGQL implements graphql.Marshaler interface.
+func (r Role) MarshalGQL(w io.Writer) {
+	io.WriteString(w, strconv.Quote(r.String()))
+}
+
+// UnmarshalGQL implements graphql.Unmarshaler interface.
+func (r *Role) UnmarshalGQL(val interface{}) error {
+	str, ok := val.(string)
+	if !ok {
+		return fmt.Errorf("enum %T must be a string", val)
+	}
+	*r = Role(str)
+	if err := RoleValidator(*r); err != nil {
+		return fmt.Errorf("%s is not a valid Role", str)
+	}
+	return nil
 }

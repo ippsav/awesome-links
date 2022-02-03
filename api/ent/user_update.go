@@ -48,6 +48,20 @@ func (uu *UserUpdate) SetImageURL(s string) *UserUpdate {
 	return uu
 }
 
+// SetNillableImageURL sets the "image_url" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableImageURL(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetImageURL(*s)
+	}
+	return uu
+}
+
+// ClearImageURL clears the value of the "image_url" field.
+func (uu *UserUpdate) ClearImageURL() *UserUpdate {
+	uu.mutation.ClearImageURL()
+	return uu
+}
+
 // SetRole sets the "role" field.
 func (uu *UserUpdate) SetRole(u user.Role) *UserUpdate {
 	uu.mutation.SetRole(u)
@@ -82,6 +96,21 @@ func (uu *UserUpdate) SetUpdatedAt(t time.Time) *UserUpdate {
 	return uu
 }
 
+// AddLinkIDs adds the "links" edge to the Link entity by IDs.
+func (uu *UserUpdate) AddLinkIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.AddLinkIDs(ids...)
+	return uu
+}
+
+// AddLinks adds the "links" edges to the Link entity.
+func (uu *UserUpdate) AddLinks(l ...*Link) *UserUpdate {
+	ids := make([]uuid.UUID, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uu.AddLinkIDs(ids...)
+}
+
 // AddBookmarkIDs adds the "bookmarks" edge to the Link entity by IDs.
 func (uu *UserUpdate) AddBookmarkIDs(ids ...uuid.UUID) *UserUpdate {
 	uu.mutation.AddBookmarkIDs(ids...)
@@ -100,6 +129,27 @@ func (uu *UserUpdate) AddBookmarks(l ...*Link) *UserUpdate {
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
+}
+
+// ClearLinks clears all "links" edges to the Link entity.
+func (uu *UserUpdate) ClearLinks() *UserUpdate {
+	uu.mutation.ClearLinks()
+	return uu
+}
+
+// RemoveLinkIDs removes the "links" edge to Link entities by IDs.
+func (uu *UserUpdate) RemoveLinkIDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.RemoveLinkIDs(ids...)
+	return uu
+}
+
+// RemoveLinks removes "links" edges to Link entities.
+func (uu *UserUpdate) RemoveLinks(l ...*Link) *UserUpdate {
+	ids := make([]uuid.UUID, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uu.RemoveLinkIDs(ids...)
 }
 
 // ClearBookmarks clears all "bookmarks" edges to the Link entity.
@@ -251,6 +301,12 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldImageURL,
 		})
 	}
+	if uu.mutation.ImageURLCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldImageURL,
+		})
+	}
 	if value, ok := uu.mutation.Role(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeEnum,
@@ -272,12 +328,66 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldUpdatedAt,
 		})
 	}
-	if uu.mutation.BookmarksCleared() {
+	if uu.mutation.LinksCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedLinksIDs(); len(nodes) > 0 && !uu.mutation.LinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.LinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.BookmarksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -290,10 +400,10 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := uu.mutation.RemovedBookmarksIDs(); len(nodes) > 0 && !uu.mutation.BookmarksCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -309,10 +419,10 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := uu.mutation.BookmarksIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -363,6 +473,20 @@ func (uuo *UserUpdateOne) SetImageURL(s string) *UserUpdateOne {
 	return uuo
 }
 
+// SetNillableImageURL sets the "image_url" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableImageURL(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetImageURL(*s)
+	}
+	return uuo
+}
+
+// ClearImageURL clears the value of the "image_url" field.
+func (uuo *UserUpdateOne) ClearImageURL() *UserUpdateOne {
+	uuo.mutation.ClearImageURL()
+	return uuo
+}
+
 // SetRole sets the "role" field.
 func (uuo *UserUpdateOne) SetRole(u user.Role) *UserUpdateOne {
 	uuo.mutation.SetRole(u)
@@ -397,6 +521,21 @@ func (uuo *UserUpdateOne) SetUpdatedAt(t time.Time) *UserUpdateOne {
 	return uuo
 }
 
+// AddLinkIDs adds the "links" edge to the Link entity by IDs.
+func (uuo *UserUpdateOne) AddLinkIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.AddLinkIDs(ids...)
+	return uuo
+}
+
+// AddLinks adds the "links" edges to the Link entity.
+func (uuo *UserUpdateOne) AddLinks(l ...*Link) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uuo.AddLinkIDs(ids...)
+}
+
 // AddBookmarkIDs adds the "bookmarks" edge to the Link entity by IDs.
 func (uuo *UserUpdateOne) AddBookmarkIDs(ids ...uuid.UUID) *UserUpdateOne {
 	uuo.mutation.AddBookmarkIDs(ids...)
@@ -415,6 +554,27 @@ func (uuo *UserUpdateOne) AddBookmarks(l ...*Link) *UserUpdateOne {
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
+}
+
+// ClearLinks clears all "links" edges to the Link entity.
+func (uuo *UserUpdateOne) ClearLinks() *UserUpdateOne {
+	uuo.mutation.ClearLinks()
+	return uuo
+}
+
+// RemoveLinkIDs removes the "links" edge to Link entities by IDs.
+func (uuo *UserUpdateOne) RemoveLinkIDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.RemoveLinkIDs(ids...)
+	return uuo
+}
+
+// RemoveLinks removes "links" edges to Link entities.
+func (uuo *UserUpdateOne) RemoveLinks(l ...*Link) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(l))
+	for i := range l {
+		ids[i] = l[i].ID
+	}
+	return uuo.RemoveLinkIDs(ids...)
 }
 
 // ClearBookmarks clears all "bookmarks" edges to the Link entity.
@@ -590,6 +750,12 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldImageURL,
 		})
 	}
+	if uuo.mutation.ImageURLCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldImageURL,
+		})
+	}
 	if value, ok := uuo.mutation.Role(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeEnum,
@@ -611,12 +777,66 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldUpdatedAt,
 		})
 	}
-	if uuo.mutation.BookmarksCleared() {
+	if uuo.mutation.LinksCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedLinksIDs(); len(nodes) > 0 && !uuo.mutation.LinksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.LinksIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.LinksTable,
+			Columns: []string{user.LinksColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: link.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.BookmarksCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -629,10 +849,10 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if nodes := uuo.mutation.RemovedBookmarksIDs(); len(nodes) > 0 && !uuo.mutation.BookmarksCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -648,10 +868,10 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if nodes := uuo.mutation.BookmarksIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.BookmarksTable,
-			Columns: []string{user.BookmarksColumn},
+			Columns: user.BookmarksPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
