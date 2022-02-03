@@ -7,6 +7,7 @@ database:
   sslmode: disable
 server:
   address: 4000
+  cookiesecret: random
 cloudinary:
   cloudname: cloudname
   apikey: apikey

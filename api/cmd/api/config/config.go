@@ -20,7 +20,8 @@ type Config struct {
 		SSLMode  string
 	}
 	Server struct {
-		Address int16
+		Address      int16
+		CookieSecret string
 	}
 	Cloudinary struct {
 		CloudName string

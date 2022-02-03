@@ -5,9 +5,12 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/ippsav/awesome-links/api/cmd/api/config"
 	"github.com/ippsav/awesome-links/api/cmd/api/handler"
+	"github.com/ippsav/awesome-links/api/cmd/api/middleware"
 	"github.com/ippsav/awesome-links/api/ent"
 	"github.com/ippsav/awesome-links/api/internal/adapter/controller"
 	"github.com/ippsav/awesome-links/api/internal/adapter/repository"
@@ -47,12 +50,17 @@ func main() {
 
 	// router
 	r := gin.Default()
-
+	// setup session store
+	store := cookie.NewStore([]byte(config.Server.CookieSecret))
 	// server
 	srv := &http.Server{
 		Addr:    ":4000",
 		Handler: r,
 	}
+	// middlewares
+	r.Use(sessions.Sessions("qid", store))
+	r.Use(middleware.SessionMiddleware())
+	r.Use(middleware.GinContextToContextMiddleware())
 	// routes
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
