@@ -12,3 +12,6 @@ cloudinary:
   cloudname: cloudname
   apikey: apikey
   apisecret: apisecret
+jwt:
+  secret: secret
+  expirationtime: 40

@@ -28,6 +28,10 @@ type Config struct {
 		ApiKey    string
 		ApiSecret string
 	}
+	JWT struct {
+		Secret         string
+		ExpirationTime int
+	}
 }
 
 func (c *Config) Parse() error {
