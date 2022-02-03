@@ -4,6 +4,7 @@ type Link {
   description: String!
   imageUrl: String!
   url: String!
+  owner: User!
   createdAt: Time!
   updatedAt: Time!
 }

@@ -9,6 +9,8 @@ type User {
   password: String!
   role: Role!
   imageUrl: String
+  bookmarks: [Link]
+  links: [Link]
   createdAt: Time!
   updatedAt: Time!
 }

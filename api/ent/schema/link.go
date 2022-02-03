@@ -30,6 +30,7 @@ func (Link) Fields() []ent.Field {
 // Edges of the Link.
 func (Link) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("owner", User.Type).Ref("bookmarks").Unique(),
+		edge.From("owner", User.Type).Ref("links").Unique(),
+		edge.From("users", User.Type).Ref("bookmarks"),
 	}
 }
